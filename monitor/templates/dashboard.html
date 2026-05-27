@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Bot Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --dim: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .mode-badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+  }
+  .mode-paper { background: var(--blue); color: #fff; }
+  .mode-live { background: var(--red); color: #fff; }
+  .conn-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .conn-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+  }
+  .conn-dot.connected { background: var(--green); }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-full { grid-column: 1 / -1; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .card-title {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    color: var(--dim);
+  }
+  .card-title.cyan { color: var(--blue); }
+  .card-title.green { color: var(--green); }
+  .card-title.yellow { color: var(--yellow); }
+  .card-title.purple { color: var(--purple); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--dim);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+  }
+  tr:last-child td { border-bottom: none; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .yellow { color: var(--yellow); }
+  .blue { color: var(--blue); }
+  .dim { color: var(--dim); }
+  .bold { font-weight: 600; }
+  .mono { font-family: 'Cascadia Code', 'Fira Code', monospace; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: var(--dim); font-size: 13px; }
+  .stat-value { font-weight: 600; font-size: 13px; font-family: 'Cascadia Code', monospace; }
+  .footer {
+    padding: 10px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--dim);
+    display: flex;
+    gap: 24px;
+  }
+  .empty-row { text-align: center; color: var(--dim); padding: 20px; }
+  .history-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .history-scroll::-webkit-scrollbar { width: 6px; }
+  .history-scroll::-webkit-scrollbar-track { background: var(--bg); }
+  .history-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .history-scroll::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-buy { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-sell { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-short { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-close { background: rgba(188,140,255,0.15); color: var(--purple); }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="mode-badge" class="mode-badge mode-paper">PAPER</span>
+    <h1>Trading Bot Dashboard</h1>
+  </div>
+  <div class="conn-status">
+    <div id="conn-dot" class="conn-dot"></div>
+    <span id="conn-text">Connecting...</span>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- Market Data -->
+  <div class="card grid-full">
+    <div class="card-title cyan">Market Data</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Pair</th>
+          <th class="text-right">Price</th>
+          <th class="text-right">MACD Hist</th>
+          <th class="text-right">ADX</th>
+          <th class="text-right">StochRSI K/D</th>
+          <th class="text-center">Trend</th>
+        </tr>
+      </thead>
+      <tbody id="market-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Open Positions -->
+  <div class="card grid-full">
+    <div class="card-title green" id="positions-title">Open Positions (0/3)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Pair</th>
+          <th class="text-center">Side</th>
+          <th class="text-right">Entry</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">SL</th>
+          <th class="text-right">TP</th>
+          <th class="text-right">Unrealized P&L</th>
+        </tr>
+      </thead>
+      <tbody id="positions-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Risk Manager -->
+  <div class="card">
+    <div class="card-title yellow">Risk Manager</div>
+    <div id="risk-panel"></div>
+  </div>
+
+  <!-- Performance -->
+  <div class="card">
+    <div class="card-title purple">Performance</div>
+    <div id="pnl-panel"></div>
+  </div>
+</div>
+
+<!-- Trade History (48h) -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title purple">Trade History (48h)</div>
+  <div class="history-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Event</th>
+          <th>Pair</th>
+          <th class="text-center">Side</th>
+          <th class="text-right">Entry</th>
+          <th class="text-right">Exit</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">Gross P&L</th>
+          <th class="text-right">Fees (0.16%)</th>
+          <th class="text-right">Net P&L</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">
+  <span>Mode: <strong id="footer-mode">PAPER</strong></span>
+  <span>Uptime: <strong id="footer-uptime">00:00:00</strong></span>
+  <span>Pairs: <strong id="footer-pairs">-</strong></span>
+  <span>Timeframe: <strong id="footer-tf">1h</strong></span>
+  <span>Last Signal: <strong id="footer-signal">-</strong></span>
+  <span>Last Update: <strong id="footer-update">-</strong></span>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function pnlClass(val) {
+  const n = parseFloat(val);
+  if (n > 0) return 'green';
+  if (n < 0) return 'red';
+  return '';
+}
+
+function formatPrice(val) {
+  const n = parseFloat(val);
+  if (n >= 100) return '$' + n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  if (n >= 1) return '$' + n.toFixed(4);
+  if (n >= 0.001) return '$' + n.toFixed(6);
+  return '$' + n.toFixed(8);
+}
+
+function macdClass(val) {
+  const n = parseFloat(val);
+  return n > 0 ? 'green' : n < 0 ? 'red' : '';
+}
+
+function adxClass(val) {
+  return parseFloat(val) >= 20 ? 'green' : 'dim';
+}
+
+function stochClass(val) {
+  const n = parseFloat(val);
+  if (n >= 0.8) return 'red';
+  if (n <= 0.2) return 'green';
+  return 'yellow';
+}
+
+function renderMarket(data) {
+  const rows = (data.market || []).map(m => {
+    const k = parseFloat(m.stochrsi_k);
+    const d = parseFloat(m.stochrsi_d);
+    return `
+    <tr>
+      <td class="bold">${m.pair}</td>
+      <td class="text-right mono">${formatPrice(m.price)}</td>
+      <td class="text-right mono ${macdClass(m.macd_hist)}">${m.macd_hist}</td>
+      <td class="text-right mono ${adxClass(m.adx)}">${m.adx}</td>
+      <td class="text-right mono ${stochClass(m.stochrsi_k)}">${k.toFixed(3)} / ${d.toFixed(3)}</td>
+      <td class="text-center bold ${m.trend === 'BULL' ? 'green' : 'red'}">${m.trend}</td>
+    </tr>
+    `;
+  }).join('');
+  $('market-body').innerHTML = rows || '<tr><td colspan="6" class="empty-row">No data</td></tr>';
+}
+
+function renderPositions(data) {
+  const positions = data.open_positions || [];
+  $('positions-title').textContent = `Open Positions (${positions.length}/${data.risk?.max_positions || 3})`;
+
+  if (!positions.length) {
+    $('positions-body').innerHTML = '<tr><td colspan="8" class="empty-row">No open positions</td></tr>';
+    return;
+  }
+  const rows = positions.map(p => {
+    const sideClass = p.side === 'long' ? 'green' : 'red';
+    const sideLabel = p.side.toUpperCase();
+    const plClass = pnlClass(p.unrealized_pnl);
+    return `
+      <tr>
+        <td class="mono dim">${p.id.slice(-10)}</td>
+        <td class="bold">${p.pair}</td>
+        <td class="text-center bold ${sideClass}">${sideLabel}</td>
+        <td class="text-right mono">${formatPrice(p.entry_price)}</td>
+        <td class="text-right mono">${parseFloat(p.amount).toFixed(8)}</td>
+        <td class="text-right mono">${formatPrice(p.stop_loss)}</td>
+        <td class="text-right mono">${formatPrice(p.take_profit)}</td>
+        <td class="text-right mono bold ${plClass}">$${parseFloat(p.unrealized_pnl).toFixed(4)}</td>
+      </tr>
+    `;
+  }).join('');
+  $('positions-body').innerHTML = rows;
+}
+
+function renderRisk(data) {
+  const r = data.risk || {};
+  const halted = r.halted;
+  const haltHtml = halted
+    ? `<div class="stat-row"><span class="stat-label">Status</span><span class="stat-value red bold">HALTED: ${r.halt_reason}</span></div>`
+    : `<div class="stat-row"><span class="stat-label">Status</span><span class="stat-value green">OK</span></div>`;
+
+  const floorClass = parseFloat(data.portfolio_value) > parseFloat(r.capital_floor) ? 'green' : 'red';
+
+  $('risk-panel').innerHTML = `
+    ${haltHtml}
+    <div class="stat-row"><span class="stat-label">Capital Floor</span><span class="stat-value ${floorClass}">$${r.capital_floor} (at $${parseFloat(data.portfolio_value).toFixed(2)} = ${r.portfolio_pct?.toFixed(1)}%)</span></div>
+    <div class="stat-row"><span class="stat-label">Max Positions</span><span class="stat-value">${r.open_count}/${r.max_positions}</span></div>
+    <div class="stat-row"><span class="stat-label">Per-Trade Risk</span><span class="stat-value">${r.per_trade_risk_pct}%</span></div>
+    <div class="stat-row"><span class="stat-label">Stop-Loss</span><span class="stat-value">${r.stop_loss_pct}%</span></div>
+    <div class="stat-row"><span class="stat-label">Take-Profit</span><span class="stat-value">${r.take_profit_pct}% ${r.tp_mode === 'atr' ? '(ATR mode)' : '(fixed)'}</span></div>
+  `;
+}
+
+function renderPnl(data) {
+  const p = data.pnl || {};
+  const realized = parseFloat(p.realized || 0);
+  const unrealized = parseFloat(p.unrealized || 0);
+  const total = parseFloat(p.total || 0);
+  const portfolio = parseFloat(data.portfolio_value || 0);
+
+  $('pnl-panel').innerHTML = `
+    <div class="stat-row"><span class="stat-label">Realized P&L</span><span class="stat-value ${pnlClass(realized)}">$${realized.toFixed(4)}</span></div>
+    <div class="stat-row"><span class="stat-label">Unrealized P&L</span><span class="stat-value ${pnlClass(unrealized)}">$${unrealized.toFixed(4)}</span></div>
+    <div class="stat-row"><span class="stat-label">Total P&L</span><span class="stat-value bold ${pnlClass(total)}">$${total.toFixed(4)}</span></div>
+    <div class="stat-row"><span class="stat-label">Portfolio Value</span><span class="stat-value bold">$${portfolio.toFixed(2)}</span></div>
+    <div class="stat-row"><span class="stat-label">Closed Trades</span><span class="stat-value">${data.closed_trades || 0}</span></div>
+  `;
+}
+
+function renderFooter(data) {
+  $('footer-mode').textContent = data.mode || 'PAPER';
+  $('footer-uptime').textContent = data.uptime || '00:00:00';
+  $('footer-pairs').textContent = (data.market || []).map(m => m.pair).join(', ') || '-';
+  $('footer-signal').textContent = data.last_signal || '-';
+  $('footer-update').textContent = new Date().toLocaleTimeString();
+
+  const badge = $('mode-badge');
+  badge.textContent = data.mode || 'PAPER';
+  badge.className = 'mode-badge ' + (data.mode === 'LIVE' ? 'mode-live' : 'mode-paper');
+}
+
+function renderHistory(data) {
+  const trades = data.trade_history || [];
+  if (!trades.length) {
+    $('history-body').innerHTML = '<tr><td colspan="11" class="empty-row">No trades in the last 48 hours</td></tr>';
+    return;
+  }
+
+  const MAKER_FEE = 0.0016;
+  const rows = trades.slice().reverse().map(t => {
+    const ts = new Date(t.timestamp);
+    const timeStr = ts.toLocaleString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false});
+
+    if (t.event === 'order_filled') {
+      const sideLabel = t.side === 'buy' ? 'BUY' : 'SHORT';
+      const badgeClass = t.side === 'buy' ? 'badge-buy' : 'badge-short';
+      const price = parseFloat(t.price || 0);
+      const amount = parseFloat(t.amount || 0);
+      const fee = amount * price * MAKER_FEE;
+      const pair = t.pair || '-';
+      const reason = (t.reason || '').substring(0, 40);
+      return `<tr>
+        <td class="dim" style="white-space:nowrap">${timeStr}</td>
+        <td><span class="badge badge-buy">ENTRY</span></td>
+        <td class="bold">${pair}</td>
+        <td class="text-center"><span class="badge ${badgeClass}">${sideLabel}</span></td>
+        <td class="text-right mono">${formatPrice(price)}</td>
+        <td class="text-right dim">-</td>
+        <td class="text-right mono">${amount.toFixed(8)}</td>
+        <td class="text-right dim">-</td>
+        <td class="text-right mono red">-$${fee.toFixed(4)}</td>
+        <td class="text-right dim">-</td>
+        <td class="dim" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.reason || ''}">${reason}</td>
+      </tr>`;
+    }
+
+    if (t.event === 'position_closed') {
+      const entryPrice = parseFloat(t.entry_price || 0);
+      const exitPrice = parseFloat(t.exit_price || 0);
+      const amount = parseFloat(t.amount || 0);
+      const grossPnl = parseFloat(t.pnl || 0);
+      const entryFee = amount * entryPrice * MAKER_FEE;
+      const exitFee = amount * exitPrice * MAKER_FEE;
+      const totalFee = entryFee + exitFee;
+      const netPnl = grossPnl - totalFee;
+      const pair = t.pair || '-';
+      const side = t.side || 'long';
+      const reason = (t.reason || '').substring(0, 40);
+      return `<tr>
+        <td class="dim" style="white-space:nowrap">${timeStr}</td>
+        <td><span class="badge badge-close">CLOSE</span></td>
+        <td class="bold">${pair}</td>
+        <td class="text-center"><span class="badge ${side === 'long' ? 'badge-buy' : 'badge-short'}">${side.toUpperCase()}</span></td>
+        <td class="text-right mono">${formatPrice(entryPrice)}</td>
+        <td class="text-right mono">${formatPrice(exitPrice)}</td>
+        <td class="text-right mono">${amount.toFixed(8)}</td>
+        <td class="text-right mono bold ${pnlClass(grossPnl)}">$${grossPnl.toFixed(4)}</td>
+        <td class="text-right mono red">-$${totalFee.toFixed(4)}</td>
+        <td class="text-right mono bold ${pnlClass(netPnl)}">$${netPnl.toFixed(4)}</td>
+        <td class="dim" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.reason || ''}">${reason}</td>
+      </tr>`;
+    }
+    return '';
+  }).join('');
+
+  $('history-body').innerHTML = rows || '<tr><td colspan="11" class="empty-row">No trades</td></tr>';
+}
+
+function render(data) {
+  renderMarket(data);
+  renderPositions(data);
+  renderRisk(data);
+  renderPnl(data);
+  renderHistory(data);
+  renderFooter(data);
+}
+
+// WebSocket with auto-reconnect
+let ws;
+let retryDelay = 1000;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    $('conn-dot').classList.add('connected');
+    $('conn-text').textContent = 'Connected';
+    retryDelay = 1000;
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      render(JSON.parse(evt.data));
+    } catch(e) {
+      console.error('Parse error:', e);
+    }
+  };
+
+  ws.onclose = () => {
+    $('conn-dot').classList.remove('connected');
+    $('conn-text').textContent = 'Reconnecting...';
+    setTimeout(connect, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 30000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+connect();
+</script>
+</body>
+</html>
